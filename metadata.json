@@ -1,0 +1,6 @@
+{
+  "name": "TradePulse - Markets & Analytics",
+  "description": "Real-time global market quotes, supercharts, heatmaps, and financial screeners across stocks, indices, crypto, forex, and commodities.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
