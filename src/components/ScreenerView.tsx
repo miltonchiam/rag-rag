@@ -10,7 +10,11 @@ import {
   Star, 
   ExternalLink,
   Filter,
-  RefreshCw
+  RefreshCw,
+  Zap,
+  TrendingUp,
+  Flame,
+  CheckCircle2
 } from 'lucide-react';
 
 interface ScreenerViewProps {
@@ -23,6 +27,7 @@ interface ScreenerViewProps {
 
 type SortField = 'symbol' | 'price' | 'changePercent' | 'volume' | 'marketCap' | 'peRatio';
 type SortOrder = 'asc' | 'desc';
+type PresetScan = 'all' | 'volume_surge' | 'breakouts' | 'high_beta' | 'oversold';
 
 export const ScreenerView: React.FC<ScreenerViewProps> = ({
   instruments,
@@ -36,6 +41,7 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
   const [selectedSector, setSelectedSector] = useState<string>('all');
   const [selectedRating, setSelectedRating] = useState<string>('all');
   const [performanceFilter, setPerformanceFilter] = useState<'all' | 'gainers' | 'losers' | 'momentum'>('all');
+  const [presetScan, setPresetScan] = useState<PresetScan>('all');
 
   const [sortField, setSortField] = useState<SortField>('marketCap');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -52,6 +58,12 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
   // Filtering
   const filtered = useMemo(() => {
     return instruments.filter(item => {
+      // Preset Scan logic
+      if (presetScan === 'volume_surge' && item.volume < item.averageVolume * 0.9) return false;
+      if (presetScan === 'breakouts' && item.price < item.high52Week * 0.95) return false;
+      if (presetScan === 'high_beta' && Math.abs(item.changePercent) < 2.5) return false;
+      if (presetScan === 'oversold' && item.changePercent > -1.0) return false;
+
       // Search
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -60,19 +72,13 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
       }
 
       // Asset Class
-      if (selectedAssetClass !== 'all' && item.assetClass !== selectedAssetClass) {
-        return false;
-      }
+      if (selectedAssetClass !== 'all' && item.assetClass !== selectedAssetClass) return false;
 
       // Sector
-      if (selectedSector !== 'all' && item.sector !== selectedSector) {
-        return false;
-      }
+      if (selectedSector !== 'all' && item.sector !== selectedSector) return false;
 
       // Rating
-      if (selectedRating !== 'all' && item.technicalRating !== selectedRating) {
-        return false;
-      }
+      if (selectedRating !== 'all' && item.technicalRating !== selectedRating) return false;
 
       // Performance Filter
       if (performanceFilter === 'gainers' && item.changePercent <= 0) return false;
@@ -81,7 +87,7 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
 
       return true;
     });
-  }, [instruments, searchQuery, selectedAssetClass, selectedSector, selectedRating, performanceFilter]);
+  }, [instruments, presetScan, searchQuery, selectedAssetClass, selectedSector, selectedRating, performanceFilter]);
 
   // Sorting
   const sorted = useMemo(() => {
@@ -124,7 +130,7 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `TradePulse_Screener_${Date.now()}.csv`);
+    link.setAttribute('download', `TradePulse_PRO_Screener_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -132,13 +138,66 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
 
   return (
     <div className="w-full flex flex-col gap-4">
-      {/* 1. Header & Filter Bar */}
+      {/* 1. Pre-Built PRO Scans Banner */}
+      <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-3 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+        <div className="flex items-center gap-2">
+          <Zap className="w-4 h-4 text-[#2962ff]" />
+          <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">PRO Scanner Presets:</span>
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
+          <button
+            onClick={() => setPresetScan('all')}
+            className={`px-3 py-1 rounded font-medium transition-colors ${
+              presetScan === 'all' ? 'bg-[#2962ff] text-white' : 'bg-[#131722] text-[#787b86] hover:text-[#d1d4dc]'
+            }`}
+          >
+            All Instruments
+          </button>
+          <button
+            onClick={() => setPresetScan('volume_surge')}
+            className={`px-3 py-1 rounded font-medium transition-colors flex items-center gap-1 ${
+              presetScan === 'volume_surge' ? 'bg-[#2962ff] text-white' : 'bg-[#131722] text-[#787b86] hover:text-[#d1d4dc]'
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5 text-[#f59e0b]" />
+            <span>Volume Surges</span>
+          </button>
+          <button
+            onClick={() => setPresetScan('breakouts')}
+            className={`px-3 py-1 rounded font-medium transition-colors flex items-center gap-1 ${
+              presetScan === 'breakouts' ? 'bg-[#2962ff] text-white' : 'bg-[#131722] text-[#787b86] hover:text-[#d1d4dc]'
+            }`}
+          >
+            <TrendingUp className="w-3.5 h-3.5 text-[#089981]" />
+            <span>52W High Breakouts</span>
+          </button>
+          <button
+            onClick={() => setPresetScan('high_beta')}
+            className={`px-3 py-1 rounded font-medium transition-colors ${
+              presetScan === 'high_beta' ? 'bg-[#2962ff] text-white' : 'bg-[#131722] text-[#787b86] hover:text-[#d1d4dc]'
+            }`}
+          >
+            ⚡ High Volatility
+          </button>
+          <button
+            onClick={() => setPresetScan('oversold')}
+            className={`px-3 py-1 rounded font-medium transition-colors ${
+              presetScan === 'oversold' ? 'bg-[#2962ff] text-white' : 'bg-[#131722] text-[#787b86] hover:text-[#d1d4dc]'
+            }`}
+          >
+            Pullbacks (Dip Buys)
+          </button>
+        </div>
+      </div>
+
+      {/* 2. Filter Controls Box */}
       <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg p-4 flex flex-col gap-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-[#2a2e39]">
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="w-4 h-4 text-[#2962ff]" />
             <h2 className="text-base font-bold text-white">Multi-Asset Financial Screener</h2>
-            <span className="text-xs font-mono text-[#787b86]">({sorted.length} matches)</span>
+            <span className="text-xs font-mono text-[#787b86]">({sorted.length} results)</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -149,6 +208,7 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
                 setSelectedSector('all');
                 setSelectedRating('all');
                 setPerformanceFilter('all');
+                setPresetScan('all');
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#787b86] hover:text-[#d1d4dc] bg-[#131722] border border-[#2a2e39] rounded-md transition-colors"
             >
@@ -168,19 +228,17 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
 
         {/* Filter controls row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
-          {/* Search box */}
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-[#787b86]" />
             <input
               type="text"
-              placeholder="Filter by symbol or name..."
+              placeholder="Search ticker, company..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-[#131722] border border-[#2a2e39] rounded-md pl-9 pr-3 py-2 text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff]"
             />
           </div>
 
-          {/* Asset Class Filter */}
           <div>
             <select
               value={selectedAssetClass}
@@ -197,7 +255,6 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
             </select>
           </div>
 
-          {/* Sector Filter */}
           <div>
             <select
               value={selectedSector}
@@ -211,7 +268,6 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
             </select>
           </div>
 
-          {/* Rating Filter */}
           <div>
             <select
               value={selectedRating}
@@ -226,7 +282,6 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
             </select>
           </div>
 
-          {/* Performance Quick Filter */}
           <div>
             <select
               value={performanceFilter}
@@ -242,12 +297,12 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
         </div>
       </div>
 
-      {/* 2. Screener Data Table */}
+      {/* 3. Screener Data Grid */}
       <div className="bg-[#1e222d] border border-[#2a2e39] rounded-lg overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs font-mono tabular-nums">
             <thead>
-              <tr className="bg-[#181c27] text-[#787b86] border-b border-[#2a2e39] font-medium select-none">
+              <tr className="bg-[#181c27] text-[#787b86] border-b border-[#2a2e39] font-medium font-sans select-none">
                 <th 
                   onClick={() => handleSort('symbol')}
                   className="py-3 px-4 cursor-pointer hover:text-white"
@@ -273,7 +328,7 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
                   className="py-3 px-4 text-right cursor-pointer hover:text-white"
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>1D Change %</span>
+                    <span>1D %</span>
                     {sortField === 'changePercent' && (sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#2962ff]" /> : <ArrowDown className="w-3 h-3 text-[#2962ff]" />)}
                   </div>
                 </th>
@@ -303,20 +358,20 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
                   className="py-3 px-4 text-right cursor-pointer hover:text-white hidden lg:table-cell"
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>P/E Ratio</span>
+                    <span>P/E</span>
                     {sortField === 'peRatio' && (sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-[#2962ff]" /> : <ArrowDown className="w-3 h-3 text-[#2962ff]" />)}
                   </div>
                 </th>
 
-                <th className="py-3 px-4 text-center hidden md:table-cell">Technical Rating</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-3 px-4 text-center hidden md:table-cell font-sans">Technical Rating</th>
+                <th className="py-3 px-4 text-right font-sans">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#2a2e39]/50">
               {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-[#787b86]">
-                    No instruments match your active screener criteria. Try resetting filters.
+                  <td colSpan={8} className="py-12 text-center text-[#787b86] font-sans">
+                    No instruments match your active criteria. Try choosing another scanner preset.
                   </td>
                 </tr>
               ) : (
@@ -328,7 +383,7 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
                       onClick={() => onSelectInstrument(item)}
                       className="hover:bg-[#131722] cursor-pointer transition-colors group"
                     >
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 font-sans">
                         <div className="flex items-center gap-2.5">
                           <button
                             onClick={(e) => {
@@ -351,29 +406,29 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
                         </div>
                       </td>
 
-                      <td className="py-3 px-4 text-right font-mono tabular-nums text-white font-semibold">
+                      <td className="py-3 px-4 text-right text-white font-semibold">
                         ${item.price < 5 && item.assetClass === 'forex' ? item.price.toFixed(4) : item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         {item.currency === '%' ? '%' : ''}
                       </td>
 
-                      <td className={`py-3 px-4 text-right font-mono tabular-nums font-bold ${isUp ? 'text-[#089981]' : 'text-[#f23645]'}`}>
+                      <td className={`py-3 px-4 text-right font-bold ${isUp ? 'text-[#089981]' : 'text-[#f23645]'}`}>
                         {isUp ? '+' : ''}{item.changePercent.toFixed(2)}%
                       </td>
 
-                      <td className="py-3 px-4 text-right font-mono tabular-nums text-[#787b86] hidden sm:table-cell">
+                      <td className="py-3 px-4 text-right text-[#787b86] hidden sm:table-cell">
                         {(item.volume / 1000000).toFixed(1)}M
                       </td>
 
-                      <td className="py-3 px-4 text-right font-mono tabular-nums text-[#d1d4dc] hidden md:table-cell">
+                      <td className="py-3 px-4 text-right text-[#d1d4dc] hidden md:table-cell">
                         {item.marketCap ? `$${(item.marketCap / 1000000000).toFixed(1)}B` : '—'}
                       </td>
 
-                      <td className="py-3 px-4 text-right font-mono tabular-nums text-[#787b86] hidden lg:table-cell">
+                      <td className="py-3 px-4 text-right text-[#787b86] hidden lg:table-cell">
                         {item.peRatio ? item.peRatio.toFixed(1) : '—'}
                       </td>
 
-                      <td className="py-3 px-4 text-center hidden md:table-cell">
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-sans font-bold ${
+                      <td className="py-3 px-4 text-center hidden md:table-cell font-sans">
+                        <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
                           item.technicalRating.includes('Buy')
                             ? 'bg-[#089981]/20 text-[#089981] border border-[#089981]/30'
                             : item.technicalRating.includes('Sell')
@@ -384,7 +439,7 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
                         </span>
                       </td>
 
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-4 text-right font-sans">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

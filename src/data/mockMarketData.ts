@@ -1012,3 +1012,132 @@ export function generateCandles(instrument: Instrument, timeframe: string = '1D'
 
   return candles;
 }
+
+// Generate realistic Level 2 Order Book with 10 bids and 10 asks
+export function generateOrderBook(instrument: Instrument) {
+  const currentPrice = instrument.price;
+  const tick = instrument.price < 5 ? 0.0001 : instrument.price > 1000 ? 1.0 : 0.05;
+  const baseSize = instrument.assetClass === 'crypto' ? 1.5 : 200;
+
+  const bids = [];
+  let cumBidSize = 0;
+  for (let i = 1; i <= 10; i++) {
+    const price = Number((currentPrice - (i * tick)).toFixed(instrument.price < 5 ? 4 : 2));
+    const size = Math.floor(baseSize * (0.8 + Math.random() * 1.6) * (1 + (i * 0.1)));
+    cumBidSize += size;
+    bids.push({ price, size, total: cumBidSize });
+  }
+
+  const asks = [];
+  let cumAskSize = 0;
+  for (let i = 1; i <= 10; i++) {
+    const price = Number((currentPrice + (i * tick)).toFixed(instrument.price < 5 ? 4 : 2));
+    const size = Math.floor(baseSize * (0.8 + Math.random() * 1.6) * (1 + (i * 0.1)));
+    cumAskSize += size;
+    asks.push({ price, size, total: cumAskSize });
+  }
+
+  const spread = Number((asks[0].price - bids[0].price).toFixed(instrument.price < 5 ? 4 : 2));
+  const spreadPercent = Number(((spread / currentPrice) * 100).toFixed(3));
+
+  return { bids, asks, spread, spreadPercent };
+}
+
+// Generate Time & Sales tape prints
+export function generateTimeAndSales(instrument: Instrument) {
+  const prints = [];
+  const now = new Date();
+  const tick = instrument.price < 5 ? 0.0001 : 0.02;
+
+  for (let i = 0; i < 15; i++) {
+    const time = new Date(now.getTime() - (i * 1400)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const isBuy = Math.random() > 0.45;
+    const priceDelta = (Math.random() - 0.5) * tick * 2;
+    const price = Number((instrument.price + priceDelta).toFixed(instrument.price < 5 ? 4 : 2));
+    const size = instrument.assetClass === 'crypto' 
+      ? Number((0.05 + Math.random() * 1.2).toFixed(3))
+      : Math.floor(10 + Math.random() * 450);
+
+    prints.push({
+      id: `print-${i}`,
+      time,
+      price,
+      size,
+      side: isBuy ? 'BUY' as const : 'SELL' as const
+    });
+  }
+  return prints;
+}
+
+export const MOCK_ECONOMIC_CALENDAR = [
+  {
+    id: 'eco-1',
+    time: '08:30 ET',
+    date: 'Today',
+    currency: 'USD',
+    country: 'United States',
+    event: 'Non-Farm Payrolls (NFP)',
+    impact: 'High' as const,
+    actual: '215K',
+    forecast: '190K',
+    previous: '223K'
+  },
+  {
+    id: 'eco-2',
+    time: '08:30 ET',
+    date: 'Today',
+    currency: 'USD',
+    country: 'United States',
+    event: 'Unemployment Rate',
+    impact: 'High' as const,
+    actual: '4.1%',
+    forecast: '4.1%',
+    previous: '4.1%'
+  },
+  {
+    id: 'eco-3',
+    time: '14:00 ET',
+    date: 'Today',
+    currency: 'USD',
+    country: 'United States',
+    event: 'FOMC Federal Funds Rate Decision',
+    impact: 'High' as const,
+    actual: '4.75%',
+    forecast: '4.75%',
+    previous: '5.00%'
+  },
+  {
+    id: 'eco-4',
+    time: '04:00 ET',
+    date: 'Tomorrow',
+    currency: 'EUR',
+    country: 'Eurozone',
+    event: 'Harmonized Index of Consumer Prices (CPI)',
+    impact: 'High' as const,
+    forecast: '2.0%',
+    previous: '1.7%'
+  },
+  {
+    id: 'eco-5',
+    time: '10:00 ET',
+    date: 'Tomorrow',
+    currency: 'USD',
+    country: 'United States',
+    event: 'ISM Services Purchasing Managers Index (PMI)',
+    impact: 'Medium' as const,
+    forecast: '53.8',
+    previous: '54.9'
+  },
+  {
+    id: 'eco-6',
+    time: '10:30 ET',
+    date: 'Tomorrow',
+    currency: 'USD',
+    country: 'United States',
+    event: 'EIA Crude Oil Storage Inventories',
+    impact: 'Medium' as const,
+    forecast: '-1.45M',
+    previous: '+2.08M'
+  }
+];
+

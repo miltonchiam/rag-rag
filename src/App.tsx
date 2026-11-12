@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { INITIAL_INSTRUMENTS } from './data/mockMarketData';
-import { Instrument, PaperTradePosition } from './types/market';
+import { Instrument, PaperTradePosition, MarketAlert } from './types/market';
 import { Header, ActiveTab } from './components/Header';
 import { GlobalTickerBar } from './components/GlobalTickerBar';
 import { OverviewView } from './components/OverviewView';
@@ -8,10 +8,12 @@ import { Superchart } from './components/Superchart';
 import { HeatmapView } from './components/HeatmapView';
 import { ScreenerView } from './components/ScreenerView';
 import { NewsView } from './components/NewsView';
+import { EconomicCalendarView } from './components/EconomicCalendarView';
 import { PortfolioView } from './components/PortfolioView';
 import { AssetDetailModal } from './components/AssetDetailModal';
 import { WatchlistDrawer } from './components/WatchlistDrawer';
 import { SearchModal } from './components/SearchModal';
+import { AlertsModal } from './components/AlertsModal';
 
 export default function App() {
   const [instruments, setInstruments] = useState<Instrument[]>(INITIAL_INSTRUMENTS);
@@ -20,11 +22,32 @@ export default function App() {
   const [modalInstrument, setModalInstrument] = useState<Instrument | null>(null);
 
   // Watchlist
-  const [watchlist, setWatchlist] = useState<string[]>(['SPX', 'NVDA', 'BTC/USD', 'TSLA', 'AAPL']);
+  const [watchlist, setWatchlist] = useState<string[]>(['SPX', 'NVDA', 'BTC/USD', 'TSLA', 'AAPL', 'ETH/USD']);
   const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
 
   // Search Modal
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // PRO Price Alerts
+  const [isAlertsOpen, setIsAlertsOpen] = useState(false);
+  const [alerts, setAlerts] = useState<MarketAlert[]>([
+    {
+      id: 'alert-1',
+      symbol: 'NVDA',
+      targetPrice: 150.00,
+      condition: 'ABOVE',
+      createdAt: Date.now() - 3600000,
+      triggered: false
+    },
+    {
+      id: 'alert-2',
+      symbol: 'BTC/USD',
+      targetPrice: 90000.00,
+      condition: 'ABOVE',
+      createdAt: Date.now() - 7200000,
+      triggered: false
+    }
+  ]);
 
   // Paper Trading Portfolio State
   const [cashBalance, setCashBalance] = useState<number>(100000);
@@ -72,20 +95,19 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Live real-time market quote simulator (subtle ticks every 3.5s)
+  // Live real-time market quote simulator (subtle ticks every 3.2s)
   useEffect(() => {
     const interval = setInterval(() => {
       setInstruments(prev => {
-        // Randomly pick 1-2 instruments to tick
         const randomIndex = Math.floor(Math.random() * prev.length);
         const item = prev[randomIndex];
-        const pctDelta = (Math.random() - 0.49) * 0.003; // tiny move ~0.15%
+        const pctDelta = (Math.random() - 0.49) * 0.003;
         const newPrice = item.price * (1 + pctDelta);
         const newChange = newPrice - item.previousClose;
         const newChangePct = (newChange / item.previousClose) * 100;
 
         const updated = [...prev];
-        updated[randomIndex] = {
+        const updatedItem = {
           ...item,
           price: Number(newPrice.toFixed(item.price < 5 ? 4 : 2)),
           change: Number(newChange.toFixed(item.price < 5 ? 4 : 2)),
@@ -93,10 +115,23 @@ export default function App() {
           high: Math.max(item.high, newPrice),
           low: Math.min(item.low, newPrice)
         };
+        updated[randomIndex] = updatedItem;
 
-        // If the updated item is our currently selected instrument, keep it in sync
+        // Check if any alerts triggered
+        setAlerts(curAlerts => curAlerts.map(a => {
+          if (a.symbol === item.symbol && !a.triggered) {
+            if (a.condition === 'ABOVE' && newPrice >= a.targetPrice) {
+              return { ...a, triggered: true };
+            }
+            if (a.condition === 'BELOW' && newPrice <= a.targetPrice) {
+              return { ...a, triggered: true };
+            }
+          }
+          return a;
+        }));
+
         if (selectedInstrument && selectedInstrument.id === item.id) {
-          setSelectedInstrument(updated[randomIndex]);
+          setSelectedInstrument(updatedItem);
         }
 
         return updated;
@@ -117,6 +152,23 @@ export default function App() {
   const handleOpenSuperchart = (inst: Instrument) => {
     setSelectedInstrument(inst);
     setActiveTab('superchart');
+  };
+
+  // Alert Actions
+  const handleAddAlert = (symbol: string, targetPrice: number, condition: 'ABOVE' | 'BELOW') => {
+    const newAlert: MarketAlert = {
+      id: `alert-${Date.now()}`,
+      symbol,
+      targetPrice,
+      condition,
+      createdAt: Date.now(),
+      triggered: false
+    };
+    setAlerts(prev => [newAlert, ...prev]);
+  };
+
+  const handleDeleteAlert = (id: string) => {
+    setAlerts(prev => prev.filter(a => a.id !== id));
   };
 
   // Trade Execution
@@ -149,7 +201,7 @@ export default function App() {
         }
       });
     } else {
-      // SELL / SHORT
+      // SELL
       setCashBalance(prev => prev + totalCost);
       setPositions(prev => {
         const existing = prev.find(p => p.symbol === symbol);
@@ -185,7 +237,7 @@ export default function App() {
 
   return (
     <div className={`min-h-screen flex flex-col ${isDark ? 'dark bg-[#131722] text-[#d1d4dc]' : 'bg-[#f0f3fa] text-[#131722]'}`}>
-      {/* 1. TradingView Top Header Bar */}
+      {/* 1. TradingView PRO Top Header Bar */}
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -195,6 +247,8 @@ export default function App() {
         watchlistCount={watchlist.length}
         onToggleWatchlist={() => setIsWatchlistOpen(true)}
         portfolioBalance={cashBalance}
+        alertCount={alerts.filter(a => a.triggered).length}
+        onOpenAlerts={() => setIsAlertsOpen(true)}
       />
 
       {/* 2. Global Benchmarks Ribbon (S&P 500, Nasdaq, BTC, Gold, Oil, Bonds) */}
@@ -225,6 +279,7 @@ export default function App() {
               instrument={selectedInstrument}
               onExecuteTrade={handleExecuteTrade}
               portfolioBalance={cashBalance}
+              onOpenAlerts={() => setIsAlertsOpen(true)}
             />
           </div>
         )}
@@ -245,6 +300,10 @@ export default function App() {
             onToggleWatchlist={handleToggleWatchlist}
             watchlist={watchlist}
           />
+        )}
+
+        {activeTab === 'calendar' && (
+          <EconomicCalendarView />
         )}
 
         {activeTab === 'news' && (
@@ -305,6 +364,17 @@ export default function App() {
           setSelectedInstrument(inst);
           setModalInstrument(inst);
         }}
+      />
+
+      {/* 7. PRO Price Alerts Modal */}
+      <AlertsModal
+        isOpen={isAlertsOpen}
+        onClose={() => setIsAlertsOpen(false)}
+        alerts={alerts}
+        onAddAlert={handleAddAlert}
+        onDeleteAlert={handleDeleteAlert}
+        instruments={instruments}
+        currentInstrument={selectedInstrument}
       />
     </div>
   );

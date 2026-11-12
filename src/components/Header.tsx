@@ -9,10 +9,12 @@ import {
   LayoutGrid, 
   SlidersHorizontal, 
   Newspaper, 
-  Briefcase
+  Briefcase,
+  Calendar,
+  Bell
 } from 'lucide-react';
 
-export type ActiveTab = 'overview' | 'superchart' | 'heatmap' | 'screener' | 'news' | 'portfolio';
+export type ActiveTab = 'overview' | 'superchart' | 'heatmap' | 'screener' | 'news' | 'calendar' | 'portfolio';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -23,6 +25,8 @@ interface HeaderProps {
   watchlistCount: number;
   onToggleWatchlist: () => void;
   portfolioBalance: number;
+  alertCount: number;
+  onOpenAlerts: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -33,33 +37,37 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSearch,
   watchlistCount,
   onToggleWatchlist,
-  portfolioBalance
+  portfolioBalance,
+  alertCount,
+  onOpenAlerts
 }) => {
   return (
-    <header className="sticky top-0 z-40 bg-[#131722] dark:bg-[#131722] border-b border-[#2a2e39] px-4 lg:px-6 h-14 flex items-center justify-between gap-4 select-none">
+    <header className="sticky top-0 z-40 bg-[#131722] border-b border-[#2a2e39] px-4 lg:px-6 h-14 flex items-center justify-between gap-4 select-none">
       {/* Zone 1: Brand & Search */}
-      <div className="flex items-center gap-6 shrink-0">
+      <div className="flex items-center gap-5 shrink-0">
         <button 
           onClick={() => setActiveTab('overview')}
           className="flex items-center gap-2.5 text-white hover:opacity-90 transition-opacity focus-visible:outline-none"
         >
-          <div className="w-8 h-8 rounded-lg bg-[#2962ff] flex items-center justify-center shadow-sm">
+          <div className="w-8 h-8 rounded-lg bg-[#2962ff] flex items-center justify-center shadow-md">
             <TrendingUp className="w-5 h-5 text-white" />
           </div>
-          <div className="flex items-baseline gap-1.5">
+          <div className="flex items-center gap-2">
             <span className="text-base font-bold tracking-tight text-white font-sans">TradePulse</span>
-            <span className="text-xs font-semibold text-[#2962ff] uppercase tracking-wider hidden sm:inline">Markets</span>
+            <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-[#2962ff] text-white tracking-widest font-mono">
+              PRO
+            </span>
           </div>
         </button>
 
         {/* Global Quick Search Button */}
         <button
           onClick={onOpenSearch}
-          className="hidden md:flex items-center gap-2.5 px-3 py-1.5 bg-[#1e222d] hover:bg-[#2a2e39] text-[#787b86] hover:text-[#d1d4dc] border border-[#2a2e39] rounded-lg text-xs transition-colors w-64 justify-between"
+          className="hidden md:flex items-center gap-2.5 px-3 py-1.5 bg-[#1e222d] hover:bg-[#2a2e39] text-[#787b86] hover:text-[#d1d4dc] border border-[#2a2e39] rounded-lg text-xs transition-colors w-60 justify-between"
         >
           <div className="flex items-center gap-2">
             <Search className="w-3.5 h-3.5" />
-            <span className="truncate">Search tickers, indices, crypto...</span>
+            <span className="truncate">Search tickers, crypto, forex...</span>
           </div>
           <kbd className="px-1.5 py-0.5 text-[10px] bg-[#131722] border border-[#363a45] rounded text-[#787b86] font-mono">⌘K</kbd>
         </button>
@@ -121,6 +129,18 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         <button
+          onClick={() => setActiveTab('calendar')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
+            activeTab === 'calendar'
+              ? 'bg-[#2962ff] text-white shadow-sm'
+              : 'text-[#d1d4dc] hover:text-white hover:bg-[#1e222d]'
+          }`}
+        >
+          <Calendar className="w-3.5 h-3.5" />
+          <span>Calendar</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('news')}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
             activeTab === 'news'
@@ -147,9 +167,23 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Market Open Status Pill */}
         <div className="hidden xl:flex items-center gap-2 px-2.5 py-1 bg-[#1e222d] border border-[#2a2e39] rounded-md text-[11px] text-[#787b86]">
           <span className="w-2 h-2 rounded-full bg-[#089981] animate-pulse"></span>
-          <span className="font-medium text-[#d1d4dc]">US Regular Session</span>
-          <span className="text-[#787b86]">· 09:30 - 16:00 ET</span>
+          <span className="font-medium text-[#d1d4dc]">NYSE / NASDAQ</span>
+          <span className="text-[#787b86]">· Live Streaming</span>
         </div>
+
+        {/* Price Alerts Button */}
+        <button
+          onClick={onOpenAlerts}
+          className="relative p-2 text-[#787b86] hover:text-white hover:bg-[#1e222d] rounded-lg transition-colors border border-transparent hover:border-[#2a2e39]"
+          title="Price Alerts Manager"
+        >
+          <Bell className="w-4 h-4" />
+          {alertCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 bg-[#f59e0b] text-black text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center font-mono">
+              {alertCount}
+            </span>
+          )}
+        </button>
 
         {/* Paper Trade Balance */}
         <button
@@ -159,7 +193,7 @@ export const Header: React.FC<HeaderProps> = ({
               ? 'bg-[#1e222d] border-[#2962ff] text-[#2962ff]'
               : 'bg-[#1e222d] border-[#2a2e39] text-[#d1d4dc] hover:border-[#363a45]'
           }`}
-          title="Paper Trading Portfolio"
+          title="PRO Trading Account"
         >
           <Briefcase className="w-3.5 h-3.5 text-[#2962ff]" />
           <span className="hidden sm:inline text-[#787b86] font-sans">Sim:</span>
